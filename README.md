@@ -92,24 +92,6 @@ Génère automatiquement :
 
 ---
 
-## Structure du projet
-
-```
-besa/
-├── README.md              ← ce fichier
-├── besa_benchmark.py      ← code principal (algorithme + benchmark)
-├── besa_article.tex       ← article LaTeX (travail en cours)
-├── figures/
-│   ├── fig_convergence.png
-│   ├── fig_sigma.png
-│   ├── fig_sensitivity.png
-│   └── fig_landscape.png
-└── results/
-    └── benchmark_10D.txt  ← résultats bruts
-```
-
----
-
 ## Limitations connues
 
 - Testé uniquement en dimension 10 pour l'instant
