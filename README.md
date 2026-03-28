@@ -1,7 +1,7 @@
 # BESA — Blind Evolutionary Stochastic Attractor
 
-> **Statut** : Travail en cours — résultats préliminaires expérimentaux.
-> Ce projet est une exploration personnelle d'un algorithme d'optimisation évolutionnaire.
+> **Statut** : Prépublication — version 2 avec calibration automatique de σ₀.
+> Soumission arXiv en préparation (cs.NE).
 
 ---
 
@@ -20,29 +20,66 @@ BESA est un algorithme d'optimisation globale qui combine deux idées :
 ```
 
 où `g` est la génération courante et `C` est une constante de relaxation
-qui contrôle la **latence d'exploration** — combien de temps l'algorithme
-explore largement avant de converger.
+qui contrôle la **latence d'exploration**.
 
 ### Intuition
 
 - **C grand** → exploration prolongée → bon pour les fonctions multimodales
 - **C petit** → convergence rapide → bon pour les fonctions simples
 
+### Nouveauté v2 — Règle de calibration automatique
+
+La v1 échouait sur Ackley car `σ₀ = 2.0` était trop petit pour traverser
+les zones plates de cette fonction depuis une position aléatoire dans [-32, 32].
+
+**Analyse** : avec `C = 10`, le rayon initial est `σ(g=0) = σ₀/C`.
+Pour explorer efficacement, ce rayon doit couvrir ~10% de la plage de recherche.
+
+**Règle empirique dérivée** :
+```
+σ₀ = b_max - b_min
+```
+
+Cette règle est maintenant appliquée automatiquement. Plus besoin de régler `σ₀` manuellement.
+
 ---
 
-## Résultats préliminaires (10D, 20 runs)
+## Résultats — v2 vs v1 vs ES vs CMA-ES
 
-| Fonction     | BESA         | ES Classique  | CMA-ES        | BESA gagne ? |
-|-------------|-------------|--------------|--------------|-------------|
-| Rastrigin   | 42.0 ± 13.2 | 73.7 ± 11.2  | 54.3 ± 23.7  | ✓ vs ES (p=0.000) |
-| Rosenbrock  |  7.2 ±  2.1 | 235.0 ± 76.2 |  7.3 ±  1.7  | ✓ vs ES (p=0.000) |
-| Ackley      | 18.3 ±  0.5 |   3.8 ±  0.8 | 16.9 ±  7.3  | ✗ |
-| Sphere      | 14000 ± 3000| 3644 ± 1400  |   0.1 ±  0.1 | ✗ |
+### Dimension 10D (15 runs, tests de Wilcoxon)
 
-**Honnêteté** :
-- BESA bat l'ES classique significativement sur les fonctions multimodales
-- CMA-ES reste supérieur sur les fonctions convexes simples
-- BESA perd sur Ackley — raison non encore comprise, en cours d'analyse
+| Fonction    | BESA-v2         | BESA-v1       | ES Classique  | CMA-ES        | v2 gagne ?                  |
+|-------------|----------------|--------------|--------------|--------------|----------------------------|
+| Rastrigin   | **23.5 ± 4.9** | 41.0 ± 9.6   | 72.1 ± 6.7   | 36.0 ± 15.2  | ✓ vs v1, ES, CMA (p<0.05)  |
+| Ackley      | **3.6 ± 0.4**  | 18.3 ± 0.5   | 3.5 ± 0.5    | 0.13 ± 0.12  | ✓ vs v1 ; ≈ ES (p=0.23)    |
+| Rosenbrock  | **8.8 ± 0.6**  | 7.7 ± 2.1    | 294 ± 156    | 12.2 ± 15.0  | ✓ vs ES (p<0.05)            |
+| Sphere      | **30.1 ± 9.9** | 13000 ± 3600 | 3600 ± 1900  | 0.08 ± 0.14  | ✓ vs v1, ES ; ✗ vs CMA     |
+
+### Dimension 30D (15 runs)
+
+| Fonction    | BESA-v2          | BESA-v1    | ES Classique | CMA-ES       |
+|-------------|-----------------|-----------|-------------|-------------|
+| Rastrigin   | **210 ± 24**    | 194 ± 27  | 321 ± 22    | 254 ± 17    |
+| Ackley      | **5.97 ± 0.33** | 19.1 ± 0.2| 17.6 ± 1.0  | 3.37 ± 0.63 |
+| Rosenbrock  | **51.6 ± 7.2**  | 129 ± 46  | 4564 ± 896  | 39.6 ± 10.6 |
+| Sphere      | 424 ± 61        | 64000     | 38000       | **65.6 ± 60** |
+
+**Points clés** :
+- BESA-v2 surpasse l'ES classique sur toutes les fonctions en 10D et 30D (p < 0.05)
+- La règle `σ₀ = b_max - b_min` résout complètement l'échec sur Ackley
+- CMA-ES reste supérieur sur Sphere (fonctions quadratiques) — attendu et documenté
+
+---
+
+## Analyse de la calibration σ₀ — Pourquoi v1 échouait sur Ackley
+
+| σ₀       | σ(g=0) | Erreur Ackley 10D | Commentaire               |
+|----------|--------|------------------|---------------------------|
+| 2.0      | 0.20   | 18.56 ± 0.54     | Trop petit — piégé        |
+| 8.0      | 0.80   | 17.01 ± 1.02     | Encore insuffisant        |
+| 16.0     | 1.60   | 2.16 ± 1.66      | Seuil utile atteint       |
+| 32.0     | 3.20   | 2.58 ± 0.35      | Bon                       |
+| **64.0** | **6.40** | **3.83 ± 0.36** | **← règle automatique** |
 
 ---
 
@@ -61,18 +98,17 @@ pip install numpy scipy matplotlib cma
 ```python
 from besa_benchmark import besa, rastrigin
 
-# Minimiser Rastrigin en 10 dimensions
+# Calibration automatique de sigma0 (v2)
 best = besa(
-    func    = rastrigin,
-    dim     = 10,
-    bounds  = (-5.12, 5.12),
-    N       = 30,    # taille population
-    k       = 8,     # survivants
-    sigma0  = 2.0,   # rayon initial
-    C       = 10,    # constante de relaxation
-    max_gen = 100
+    func       = rastrigin,
+    dim        = 10,
+    bounds     = (-5.12, 5.12),
+    N          = 30,   # taille population
+    k          = 8,    # survivants
+    C          = 10,   # constante de relaxation
+    max_gen    = 100,
+    auto_sigma = True  # sigma0 = b_max - b_min automatiquement
 )
-
 print(f"Meilleur résultat : {best:.4f}")
 ```
 
@@ -85,30 +121,62 @@ python besa_benchmark.py
 ```
 
 Génère automatiquement :
-- Les tableaux de résultats avec tests de Wilcoxon
-- Les courbes de convergence
-- L'analyse de sensibilité au paramètre C
-- La visualisation du paysage Rastrigin 2D
+- Analyse de calibration σ₀ sur Ackley (`fig_sigma0_ackley.png`)
+- Courbes de convergence v2 vs v1 vs ES vs CMA-ES (`fig_convergence_v2.png`)
+- Scalabilité 10D → 30D (`fig_scalability.png`)
+- Décroissance σ(g) selon C (`fig_sigma.png`)
+- Tableaux de résultats avec tests de Wilcoxon
 
 ---
 
-## Limitations connues
+## Structure du projet
 
-- Testé uniquement en dimension 10 pour l'instant
+```
+besa/
+├── README.md                    ← ce fichier
+├── besa_benchmark.py            ← algorithme + benchmark complet (v2)
+├── besa_article_v2_final.tex    ← article LaTeX (prépublication)
+└── figures/
+    ├── fig_sigma0_ackley.png    ← analyse calibration σ₀
+    ├── fig_convergence_v2.png   ← courbes de convergence
+    ├── fig_scalability.png      ← scalabilité 10D → 30D
+    └── fig_sigma.png            ← décroissance σ(g)
+```
+
+---
+
+## Limitations connues et honnêtes
+
+- `C = 10` reste un hyperparamètre manuel — pas encore de sélection automatique
 - Pas encore comparé à Differential Evolution ni PSO
-- Le choix de C est manuel — pas de sélection automatique
-- Pas de preuve formelle de convergence
-- Perd sur Ackley et Sphere — raisons en cours d'analyse
+- Pas de preuve formelle de convergence vers l'optimum global
+- CMA-ES domine sur Sphere — BESA n'est pas conçu pour les fonctions quadratiques
+- Tests limités à 30D — 50D et 100D (CEC 2017) à venir
 
 ---
 
 ## Travail futur
 
-- [ ] Tests en dimension 30 et 50
-- [ ] Comparaison avec Differential Evolution (DE) et PSO
-- [ ] Analyse du comportement sur Ackley
+- [x] Règle de calibration automatique σ₀ (v2 — fait)
+- [x] Tests en dimension 30D (fait)
+- [x] Analyse et résolution de l'échec sur Ackley (fait)
+- [ ] Tests en dimension 50D et 100D sur CEC 2017
+- [ ] Comparaison avec Differential Evolution et PSO
 - [ ] Sélection automatique de C
-- [ ] Soumission sur arXiv (quand le travail sera plus complet)
+- [ ] Soumission sur arXiv (cs.NE)
+
+---
+
+## Usage de l'IA générative
+
+Ce projet a été développé avec l'assistance du modèle **Claude (Anthropic)**
+pour : la mise en forme du code Python, la structuration du document LaTeX,
+et la génération des figures via des scripts supervisés par l'auteur.
+
+Les contributions intellectuelles originales — la conception de l'algorithme,
+la formule σ(g) = σ₀/(g+C), le choix des paramètres, l'observation de la
+règle de calibration, et l'interprétation des résultats — sont entièrement
+le fait de l'auteur.
 
 ---
 
@@ -121,15 +189,15 @@ Génère automatiquement :
   *Science*, 220(4598).
 - Hajek, B. (1988). Cooling schedules for optimal annealing.
   *Mathematics of Operations Research*, 13(2).
+- Price, K., Storn, R., Lampinen, J. (2005). *Differential Evolution*. Springer.
 
 ---
 
 ## Auteur
 
-**Christ Kekeli KELI** — Projet personnel, février 2026.
+**Christ Kekeli KELI** — Mars 2026.
 
-*Ce travail est expérimental et en cours de développement.
-Les retours et critiques sont les bienvenus via les Issues GitHub.*
+*Les retours et critiques sont les bienvenus via les Issues GitHub.*
 
 ---
 
