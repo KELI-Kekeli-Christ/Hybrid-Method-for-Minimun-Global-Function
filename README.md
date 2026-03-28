@@ -129,21 +129,6 @@ Génère automatiquement :
 
 ---
 
-## Structure du projet
-
-```
-besa/
-├── README.md                    ← ce fichier
-├── besa_benchmark.py            ← algorithme + benchmark complet (v2)
-├── besa_article_v2_final.tex    ← article LaTeX (prépublication)
-└── figures/
-    ├── fig_sigma0_ackley.png    ← analyse calibration σ₀
-    ├── fig_convergence_v2.png   ← courbes de convergence
-    ├── fig_scalability.png      ← scalabilité 10D → 30D
-    └── fig_sigma.png            ← décroissance σ(g)
-```
-
----
 
 ## Limitations connues et honnêtes
 
@@ -157,14 +142,9 @@ besa/
 
 ## Travail futur
 
-- [x] Règle de calibration automatique σ₀ (v2 — fait)
-- [x] Tests en dimension 30D (fait)
-- [x] Analyse et résolution de l'échec sur Ackley (fait)
 - [ ] Tests en dimension 50D et 100D sur CEC 2017
 - [ ] Comparaison avec Differential Evolution et PSO
-- [ ] Sélection automatique de C
-- [ ] Soumission sur arXiv (cs.NE)
-
+- [ ] Sélection automatique du paramètre C
 ---
 
 ## Usage de l'IA générative
