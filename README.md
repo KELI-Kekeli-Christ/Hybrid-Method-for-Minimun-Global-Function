@@ -1,3 +1,11 @@
+<p align="center">
+  <a href="README.md"><b>English</b></a>
+  &nbsp;·&nbsp;
+  <a href="README.fr.md">Français</a>
+  &nbsp;·&nbsp;
+  <a href="README.es.md">Español</a>
+</p>
+
 # BESA — Blind Evolutionary Stochastic Attractor
 
 > **Statut** : Prépublication — version 2 avec calibration automatique de σ₀.
